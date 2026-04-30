@@ -206,15 +206,22 @@ def _extract_meta(page) -> dict[str, str]:
     text = page.get_text("text")
     meta: dict[str, str] = {}
 
-    for line in text.split("\n"):
-        line = line.strip()
-        if "Periode" in line:
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
+
+    # Extract periode (look for date range pattern)
+    for line in lines:
+        if "Periode" in line or "periode" in line:
             parts = line.split(":", 1)
             if len(parts) == 2:
                 meta["periode"] = parts[1].strip()
+                break
+        # Also look for date range without explicit "Periode:" label
+        if re.match(r"\d{1,2}\s*(jan|january|feb|february|mar|march|apr|april|mei|may|jun|june|jul|july|agu|august|sep|september|okt|october|nov|november|des|december)\s*\d{4}", line.lower()):
+            meta["periode"] = line
+            break
 
-    lines = [l.strip() for l in text.split("\n") if l.strip()]
-    for line in lines[:15]:
+    # Extract name (first meaningful non-label line)
+    for line in lines[:20]:
         if line and not any(
             kw in line.lower()
             for kw in [
@@ -222,13 +229,17 @@ def _extract_meta(page) -> dict[str, str]:
                 "riwayat",
                 "transaksi",
                 "periode",
+                "periode transaksi",
                 "total",
                 "email",
                 "phone",
+                "+62",
                 "@",
             ]
         ):
-            meta.setdefault("nama", line)
-            break
+            # Skip lines that look like addresses or status messages
+            if not any(jl in line for jl in ["jl.", "Jl.", "No.", "Jakarta", "Bogor", "Depok"]):
+                meta.setdefault("nama", line)
+                break
 
     return meta

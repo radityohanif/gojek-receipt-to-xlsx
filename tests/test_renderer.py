@@ -50,17 +50,18 @@ class TestRenderer:
         wb = load_workbook(path)
         ws = wb.active
         assert ws.title == "Transaksi"
-        assert ws.cell(1, 1).value == "Tanggal"
-        assert ws.cell(1, 8).value == "Total Dibayar"
-        assert ws.cell(1, 3).value == "No. Transaksi"
+        # Table header now at row 7
+        assert ws.cell(7, 1).value == "Tanggal"
+        assert ws.cell(7, 8).value == "Total Dibayar"
+        assert ws.cell(7, 3).value == "No. Transaksi"
 
     def test_renderer_sum_formula(self, tmp_path: Path) -> None:
         path = tmp_path / "out.xlsx"
         render(_sample_receipt(), path)
         wb = load_workbook(path, data_only=False)
         ws = wb.active
-        # Footer is row 4 (1 header + 2 data + 1 footer)
-        footer_cell = ws.cell(4, 8).value or ""
+        # Footer is row 10 (rows 1-6 header section, row 7 table header, rows 8-9 data, row 10 footer)
+        footer_cell = ws.cell(10, 8).value or ""
         assert "SUM" in footer_cell
 
     def test_renderer_data_values(self, tmp_path: Path) -> None:
@@ -68,18 +69,19 @@ class TestRenderer:
         render(_sample_receipt(), path)
         wb = load_workbook(path, data_only=True)
         ws = wb.active
-        assert ws.cell(2, 3).value == "RB-123456-789"
-        assert ws.cell(2, 8).value == 15000
-        assert ws.cell(3, 4).value == "GoFood"
+        # Data now starts at row 8
+        assert ws.cell(8, 3).value == "RB-123456-789"
+        assert ws.cell(8, 8).value == 15000
+        assert ws.cell(9, 4).value == "GoFood"
 
     def test_renderer_number_format(self, tmp_path: Path) -> None:
         path = tmp_path / "out.xlsx"
         render(_sample_receipt(), path)
         wb = load_workbook(path)
         ws = wb.active
-        # Check that Total Dibayar has number format
-        cell_h2 = ws.cell(2, 8)
-        assert cell_h2.number_format == "#,##0"
+        # Check that Total Dibayar has number format (first data row is now row 8)
+        cell_h8 = ws.cell(8, 8)
+        assert cell_h8.number_format == "#,##0"
 
     def test_renderer_empty_receipt(self, tmp_path: Path) -> None:
         path = tmp_path / "out.xlsx"
@@ -89,6 +91,20 @@ class TestRenderer:
         render(empty, path)
         wb = load_workbook(path)
         ws = wb.active
-        # Header row + footer row
-        assert ws.cell(1, 1).value == "Tanggal"
-        assert ws.cell(2, 1).value == "TOTAL"
+        # Table header at row 7, TOTAL at row 8
+        assert ws.cell(7, 1).value == "Tanggal"
+        assert ws.cell(8, 1).value == "TOTAL"
+
+    def test_renderer_header_section(self, tmp_path: Path) -> None:
+        path = tmp_path / "out.xlsx"
+        render(_sample_receipt(), path)
+        wb = load_workbook(path)
+        ws = wb.active
+        # Check header section content
+        assert ws.cell(1, 2).value == "Riwayat Transaksi Gojek"
+        assert ws.cell(3, 1).value == "Periode:"
+        assert ws.cell(3, 2).value == "01/04/2026 - 29/04/2026"
+        assert ws.cell(4, 1).value == "Pemilik:"
+        assert ws.cell(4, 2).value == "Budi Santoso"
+        assert ws.cell(5, 1).value == "Total Transaksi:"
+        assert ws.cell(5, 2).value == 2
