@@ -1,0 +1,2 @@
+[console_scripts]
+gojek-receipt = gojek_receipt.cli:app
